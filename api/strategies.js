@@ -68,7 +68,7 @@ export default async (req, res) => {
 
     // get all strategies from the database
     try {
-      const { rows } = await sql`SELECT  id, email, submitted_at, last_evaluated_at, last_evaluation_time, win_count, loss_count, evaluated_against_count FROM psp_strategies ORDER BY win_count DESC`
+      const { rows } = await sql`SELECT  id, code, email, submitted_at, last_evaluated_at, last_evaluation_time, win_count, loss_count, evaluated_against_count FROM psp_strategies ORDER BY win_count DESC`
 
       return res.status(200).json(rows)
     } catch (error) {
