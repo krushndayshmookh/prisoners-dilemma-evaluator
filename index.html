@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Strategy Submissions</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid #ddd;
+      }
+      th,
+      td {
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f4f4f4;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Strategy Submission</h1>
+
+    <form id="submissionForm">
+      <label for="email">Email:</label><br />
+      <input type="email" id="email" name="email" required /><br /><br />
+
+      <label for="code">Code:</label><br />
+      <textarea id="code" name="code" rows="6" cols="50" required></textarea
+      ><br /><br />
+
+      <button type="submit">Submit</button>
+    </form>
+
+    <h2>Submissions</h2>
+
+    <table id="submissionsTable">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Submitted At</th>
+          <th>Last Evaluated At</th>
+          <th>Last Evaluation Time</th>
+          <th>Win Count</th>
+          <th>Loss Count</th>
+          <th>Evaluated Against Count</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Submissions will be populated here dynamically -->
+      </tbody>
+    </table>
+
+    <script>
+      document
+        .getElementById('submissionForm')
+        .addEventListener('submit', async (event) => {
+          event.preventDefault()
+
+          const email = document.getElementById('email').value
+          const code = document.getElementById('code').value
+
+          try {
+            const response = await fetch('/api/strategies', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email, code }),
+            })
+
+            if (response.ok) {
+              alert('Submission successful!')
+              loadSubmissions()
+            } else {
+              alert('Failed to submit strategy.')
+            }
+          } catch (error) {
+            console.error('Error:', error)
+            alert('An error occurred while submitting.')
+          }
+        })
+
+      function formatInterval(interval) {
+        return `${interval.seconds}s ${interval.milliseconds}ms`
+      }
+
+      function formatDateTime(dateTime) {
+        // input is +0000 UTC time
+        // convert to +0530 by adding 5:30 hours and format in YYYY-MM-DD HH:MM:SS
+
+        const milliseconds = new Date(dateTime).getTime() + 5.5 * 60 * 60 * 1000
+        const date = new Date(milliseconds)
+        return date.toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      }
+
+      async function loadSubmissions() {
+        try {
+          const response = await fetch('/api/strategies')
+          if (response.ok) {
+            const submissions = await response.json()
+            const tableBody = document
+              .getElementById('submissionsTable')
+              .querySelector('tbody')
+
+            tableBody.innerHTML = ''
+            submissions.forEach((submission) => {
+              const row = document.createElement('tr')
+
+              row.innerHTML = `
+                            <td>${submission.email}</td>
+                            <td>${formatDateTime(submission.submitted_at)}</td>
+                            <td>${
+                              submission.last_evaluated_at
+                                ? formatDateTime(submission.last_evaluated_at)
+                                : 'N/A'
+                            }</td>
+                            <td>${
+                              submission.last_evaluation_time
+                                ? `${formatInterval(
+                                    submission.last_evaluation_time
+                                  )}`
+                                : 'N/A'
+                            }</td>
+                            <td>${submission.win_count}</td>
+                            <td>${submission.loss_count}</td>
+                            <td>${submission.evaluated_against_count}</td>
+                            <td>
+                                <button onclick="evaluateStrategy('${
+                                  submission.id
+                                }')">Evaluate</button>
+                            </td>
+                        `
+
+              tableBody.appendChild(row)
+            })
+          } else {
+            console.error('Failed to load submissions')
+          }
+        } catch (error) {
+          console.error('Error:', error)
+        }
+      }
+
+      async function evaluateStrategy(strategyId) {
+        try {
+          const response = await fetch(`/api/trigger-evaluation`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ strategyId }),
+          })
+
+          if (response.ok) {
+            alert('Evaluation successful!')
+            loadSubmissions()
+          } else {
+            alert('Failed to evaluate strategy.')
+          }
+        } catch (error) {
+          console.error('Error:', error)
+          if (error.response.code == 'strategy_evaluated_recently') {
+            alert('Strategy evaluated recently. Please try again later.')
+          } else {
+            alert('An error occurred while evaluating.')
+          }
+        }
+      }
+
+      // Initial load of submissions
+      loadSubmissions()
+    </script>
+  </body>
+</html>
